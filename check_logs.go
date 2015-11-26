@@ -33,18 +33,19 @@ func hoursInterval(hinput, hnow int) (interval []string) {
 
 	var x string
 	switch {
+	//We want to check a current day only
 	case hinput >= hnow: 
 		for i := hnow; i >= 0; i-- {
 			x = strconv.Itoa(i)
 			x = addNull(x)
 			interval = append(interval, x)
 		}
+	//Special case: check only a current hour
 	case hinput == 0: 
-		for i := hnow; i >= 0; i-- {
-                        x = strconv.Itoa(i)
-                        x = addNull(x)
-                        interval = append(interval, x)
-                }
+		i := hnow
+                x = strconv.Itoa(i)
+                x = addNull(x)
+                interval = append(interval, x)
 	default:
 		hdiff := hnow - hinput
 		for i := hnow; i >= hdiff; i-- {
@@ -144,7 +145,7 @@ func main() {
 
 	flag.StringVar(&re, "r", "[Ee]xception", "A regular expression for seeking")
 
-	hours := flag.Int("h", 1, "Time interval for monitoring in hours\n   Log's date format must be yyyy[/-]mm[/-]dd hh:mm:ss\n   or yyyy[/-]mm[/-]ddThh:mm:ss at the beginning of a line")
+	hours := flag.Int("h", 1, "Time interval for monitoring in hours\n   Log's date format must be yyyy[/-]mm[/-]dd hh:mm:ss\n   or yyyy[/-]mm[/-]ddThh:mm:ss at the beginning of a line; if --h=0 then it checks a current hour only")
 	buf := flag.Int("b", 4096, "Amount of bytes to read from the end of a file")
 
 	flag.Parse()
