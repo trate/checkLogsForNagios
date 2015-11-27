@@ -120,7 +120,7 @@ func logfile_not_fresh() {
 }
 //Output for Nagios
 func nagiosOut(appErrors []string) {
-        if appErrors == nil {
+        if len(appErrors) == 0 {
                 fmt.Printf("OK: Errors not found.")
                 os.Exit(0)
         } else {
@@ -233,7 +233,7 @@ func main() {
 
 		}
 		// if something has remained than deal with it
-		if remainder != 0 && appErrors == nil {
+		if remainder != 0 && len(appErrors) == 0 {
 			b2 := make([]byte, remainder)
 
 			_, err = f.Seek(0, 0)
