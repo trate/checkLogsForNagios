@@ -98,7 +98,6 @@ func readLogsParseTime(b []byte, re, value string, ynow, mnow, dnow, hnow, hinpu
 
         l := len(sslice) - 1
 
-// Make slice of the current day only: i > 0, not i >= 0
         for i := l; i >= 0 ; i-- {
 
                 if len(appErrors) == 2 {
