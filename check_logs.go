@@ -3,49 +3,51 @@
 package main
 
 import (
-	"os"
-	"fmt"
 	"flag"
-	"time"
-	"log"
-	"regexp"
+	"fmt"
 	"io"
-	"strings"
+	"log"
+	"os"
+	"regexp"
 	"strconv"
+	"strings"
+	"time"
 )
 
 func check(e error) {
 	if e != nil {
-                log.Fatal(e)
-        }
+		log.Fatal(e)
+	}
 }
+
 //For example, from "7" to "07"
-func addNull (s string) (snull string) {
+func addNull(s string) (snull string) {
 	if len(s) == 1 {
-		snull = "0"+s
+		snull = "0" + s
 	} else {
 		snull = s
 	}
 	return
 }
+
 //Makes slices of hours from past to now
 func hoursInterval(hinput, hnow int) (interval []string) {
 
 	var x string
 	switch {
 	//We want to check a current day only
-	case hinput >= hnow: 
+	case hinput >= hnow:
 		for i := hnow; i >= 0; i-- {
 			x = strconv.Itoa(i)
 			x = addNull(x)
 			interval = append(interval, x)
 		}
 	//Special case: check only a current hour
-	case hinput == 0: 
+	case hinput == 0:
 		i := hnow
-                x = strconv.Itoa(i)
-                x = addNull(x)
-                interval = append(interval, x)
+		x = strconv.Itoa(i)
+		x = addNull(x)
+		interval = append(interval, x)
 	default:
 		hdiff := hnow - hinput
 		for i := hnow; i >= hdiff; i-- {
@@ -56,24 +58,23 @@ func hoursInterval(hinput, hnow int) (interval []string) {
 	}
 	return
 }
+
 //Make a regular expression string for matching desired time frame
 func makeRegexp(interval []string) (sinterval string) {
-        var s string
-        for _, value := range interval {
-                s += "|" + value
-        }
-        sinterval = s[1:]
-        return
+	var s string
+	for _, value := range interval {
+		s += "|" + value
+	}
+	sinterval = s[1:]
+	return
 }
-		
 
 //Parses slice of errors seeking according to provided time values
 func readLogsParseTime(b []byte, re, value string, ynow, mnow, dnow, hnow, hinput int) (appErrors []string, ssliceRemain []byte) {
 
 	var sslice []string
 
-        s := string(b)
-	
+	s := string(b)
 
 	ynowStr := strconv.Itoa(ynow)
 	mnowStr := strconv.Itoa(mnow)
@@ -81,60 +82,59 @@ func readLogsParseTime(b []byte, re, value string, ynow, mnow, dnow, hnow, hinpu
 	dnowStr := strconv.Itoa(dnow)
 	dnowStr = addNull(dnowStr)
 
-	retimeBreak := regexp.MustCompile(ynowStr +`(/|-)` + mnowStr + `(/|-)` + dnowStr)
-// Slicing current day and the rest
-	if retimeBreak.MatchString(s) {
-		sslice = retimeBreak.Split(s,-1)
+	retimeBreak := regexp.MustCompile(ynowStr + `(/|-)` + mnowStr + `(/|-)` + dnowStr)
+	// The time interval which is actually needed
+	reSearchExists := regexp.MustCompile(ynowStr + `(/|-)` + mnowStr + `(/|-)` + dnowStr + `[ T]` + `(` + value + `)` + `:`)
+	// Slicing the time interval and the rest
+	if reSearchExists.MatchString(s) {
+		sslice = retimeBreak.Split(s, -1)
 		ssliceRemain = []byte(sslice[0])
 		sslice = sslice[1:]
 	} else {
-		nagiosOut(appErrors)	
+		nagiosOut(appErrors)
 	}
 
+	retimeint := regexp.MustCompile(`[ T]` + `(` + value + `)` + `:`)
+	reerrors := regexp.MustCompile(re)
 
-        retimeint := regexp.MustCompile(`[ T]` + `(` + value + `)` + `:`)
-        reerrors := regexp.MustCompile(re)
+	l := len(sslice) - 1
 
+	for i := l; i >= 0; i-- {
 
-        l := len(sslice) - 1
+		if len(appErrors) == 2 {
+			break
+		}
 
-        for i := l; i >= 0 ; i-- {
+		if retimeint.MatchString(sslice[i]) && reerrors.MatchString(sslice[i]) {
+			appErrors = append(appErrors, sslice[i])
+		}
+	}
 
-                if len(appErrors) == 2 {
-                        break
-                }
-
-                if retimeint.MatchString(sslice[i]) && reerrors.MatchString(sslice[i]) {
-                        appErrors = append(appErrors, sslice[i])
-                }
-        }
-
-        return
+	return
 }
-
 
 func logfile_not_fresh() {
 	fmt.Printf("WARNING:  Logfile wasn't modified today!")
 	os.Exit(1)
 }
+
 //Output for Nagios
 func nagiosOut(appErrors []string) {
-        if len(appErrors) == 0 {
-                fmt.Printf("OK: Errors not found.")
-                os.Exit(0)
-        } else {
+	if len(appErrors) == 0 {
+		fmt.Printf("OK: Errors not found.")
+		os.Exit(0)
+	} else {
 		s := appErrors[0]
 		s = strings.Replace(s, "\n", " ", -1)
-                if len(appErrors) == 1 {
-                        fmt.Printf("CRITICAL: %s", s)
-                        os.Exit(2)
-                } else {
-                        fmt.Printf("CRITICAL: Too many errors. Please check logs! %s", s)
-                        os.Exit(2)
-                }
-        }
+		if len(appErrors) == 1 {
+			fmt.Printf("CRITICAL: %s", s)
+			os.Exit(2)
+		} else {
+			fmt.Printf("CRITICAL: Too many errors. Please check logs! %s", s)
+			os.Exit(2)
+		}
+	}
 }
-
 
 func main() {
 
@@ -149,12 +149,11 @@ func main() {
 
 	flag.Parse()
 
-
 	if len(flag.Args()) != 1 {
 		flag.Usage()
 		os.Exit(2)
 	}
-	
+
 	fname := flag.Arg(0)
 	finfo, err := os.Stat(fname)
 	if err != nil {
@@ -171,38 +170,35 @@ func main() {
 		logfile_not_fresh()
 	}
 
-	
 	hnow := tnow.Hour()
 	dnow := tnow.Day()
 	mnow := int(tnow.Month())
 	ynow := tnow.Year()
-	
-	
 
 	hinput := *hours
 	bs := *buf
 
-	interval := hoursInterval(hinput, hnow)	
+	interval := hoursInterval(hinput, hnow)
 
-        value := makeRegexp(interval)
+	value := makeRegexp(interval)
 
-// File from the end
+	// File from the end
 	f, err := os.Open(fname)
-        check(err)
+	check(err)
 
-        defer f.Close()
+	defer f.Close()
 
-        size, err = f.Seek(0, 2)
-        check(err)
+	size, err = f.Seek(0, 2)
+	check(err)
 
 	_, err = f.Seek(0, 0)
-        check(err)
+	check(err)
 
 	//Create buffer equal provided with -b key or by default
 	b := make([]byte, bs)
-        l = int64(len(b))
+	l = int64(len(b))
 
-        remainder := size % l
+	remainder := size % l
 
 	var appErrors []string
 
@@ -217,7 +213,7 @@ func main() {
 
 			_, err = io.ReadFull(f, b)
 			check(err)
-				
+
 			fEndSlice = b
 
 			//Append a broken part of file (without a date)
@@ -228,7 +224,6 @@ func main() {
 			if len(appErrors) > 0 {
 				break
 			}
-		
 
 		}
 		// if something has remained than deal with it
@@ -236,10 +231,10 @@ func main() {
 			b2 := make([]byte, remainder)
 
 			_, err = f.Seek(0, 0)
-       			check(err)
+			check(err)
 
 			_, err := io.ReadFull(f, b2)
-                        check(err)	
+			check(err)
 			fEndSlice = b2
 			fEndSlice = append(fEndSlice, ssliceRemain...)
 			appErrors, _ = readLogsParseTime(fEndSlice, re, value, ynow, mnow, dnow, hnow, hinput)
@@ -247,17 +242,15 @@ func main() {
 	//If buffer size is greater than a file size
 	case l > size:
 		_, err = f.Seek(0, 0)
-        	check(err)
+		check(err)
 
 		b3 := make([]byte, remainder)
-                _, err := io.ReadFull(f, b3)
-                check(err)
-                fEndSlice = b3
-                appErrors, _ = readLogsParseTime(fEndSlice, re, value, ynow, mnow, dnow, hnow, hinput)
+		_, err := io.ReadFull(f, b3)
+		check(err)
+		fEndSlice = b3
+		appErrors, _ = readLogsParseTime(fEndSlice, re, value, ynow, mnow, dnow, hnow, hinput)
 	}
-		
 
-	
 	nagiosOut(appErrors)
 
 }
